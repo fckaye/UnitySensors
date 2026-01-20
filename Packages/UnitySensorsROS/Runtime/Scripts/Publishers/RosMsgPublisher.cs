@@ -6,6 +6,12 @@ using UnitySensors.ROS.Serializer;
 
 namespace UnitySensors.ROS.Publisher
 {
+    public enum PublishUpdateMode
+    {
+        Update,
+        FixedUpdate
+    }
+
     public class RosMsgPublisher<T, TT> : MonoBehaviour where T : RosMsgSerializer<TT> where TT : Message, new()
     {
         [SerializeField, Min(0)]
@@ -16,6 +22,10 @@ namespace UnitySensors.ROS.Publisher
 
         [SerializeField]
         protected T _serializer;
+
+        [SerializeField]
+        private PublishUpdateMode _updateMode = PublishUpdateMode.Update;
+
         private static int _publisher_count = 0;
 
         private ROSConnection _ros;
@@ -35,6 +45,7 @@ namespace UnitySensors.ROS.Publisher
                 InitializePublisherOffset();
             }
         }
+        public PublishUpdateMode updateMode { get => _updateMode; set => _updateMode = value; }
         private void Awake()
         {
             InitializePublisher();
@@ -74,8 +85,7 @@ namespace UnitySensors.ROS.Publisher
             _serializer.Init();
         }
 
-        // TODO: Use Coroutine for async publishing
-        protected virtual void Update()
+        private void PublishMessage()
         {
             _dt += Time.deltaTime;
             if (_dt < _frequency_inv) return;
@@ -88,6 +98,19 @@ namespace UnitySensors.ROS.Publisher
             _ros.Publish(_topicName, _serializer.Serialize());
 
             _dt -= _frequency_inv;
+        }
+
+        // TODO: Use Coroutine for async publishing
+        protected virtual void Update()
+        {
+            if (_updateMode != PublishUpdateMode.Update) return;
+            PublishMessage();
+        }
+
+        protected virtual void FixedUpdate()
+        {
+            if (_updateMode != PublishUpdateMode.FixedUpdate) return;
+            PublishMessage();
         }
 
         private void OnDestroy()
